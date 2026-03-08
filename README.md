@@ -6,20 +6,34 @@
 
 本仓库收集并整理每日的 GitHub Trending 项目和 HackerNews 热门内容，方便回顾和查阅。
 
-### 目录结构
+## 目录结构
 
 ```
-├── github_trending_YYYY-MM-DD.md    # 每日 GitHub Trending 精选
-├── hackernews_YYYY-MM-DD.md          # HackerNews 当日热门
-└── LICENSE                           # MIT 许可证
+clawd_code_store/
+├── github-trending/
+│   ├── 2026-01/
+│   ├── 2026-02/
+│   └── 2026-03/
+├── hackernews/
+├── docs/
+├── README.md
+├── .gitignore
+└── LICENSE
 ```
 
-### 文件说明
+## 文件命名规范
 
-| 文件类型 | 命名格式 | 内容 |
-|---------|---------|------|
-| GitHub Trending | `github_trending_YYYY-MM-DD.md` | 每日 GitHub 热门开源项目 |
-| HackerNews | `hackernews_YYYY-MM-DD.md` | HackerNews 热门帖子 |
+| 类型 | 格式 | 存放目录 |
+|-----|------|---------|
+| GitHub Trending | `github_trending_YYYY-MM-DD.md` 或 `github_trending_YYYY_MM_DD.md` | `github-trending/YYYY-MM/` |
+| HackerNews | `hackernews_YYYY-MM-DD.md` | `hackernews/` |
+
+## 更新指引
+
+1. **抓取 GitHub Trending**：每日运行脚本抓取
+2. **文件命名**：使用 `github_trending_YYYY-MM-DD.md` 格式（横杠分隔）
+3. **存放位置**：根据月份移动到对应目录，如 2026年3月的内容放入 `github-trending/2026-03/`
+4. **提交推送**：提交时注明日期，便于追溯
 
 ## 更新频率
 
