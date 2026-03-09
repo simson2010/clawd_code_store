@@ -1,116 +1,73 @@
-# GitHub Trending - 2026-03-10
+# Github Daily Trending - 2026-03-10
 
-**抓取时间:** 2026-03-10 02:01:00
+## 趋势分析
+
+今日GitHub Trending呈现以下趋势：
+
+1. **AI Agent依然是主旋律**：多个项目聚焦于AI Agent开发，包括NousResearch的hermes-agent（可自学习的AI代理）、MiroFish/BettaFish（多Agent舆情分析）、agency-agents（AI代理工厂）等
+2. **低成本LLM训练**：karpathy的nanochat项目展示了用不到100美元训练GPT-2级别模型的可能
+3. **Google Cloud AI**：GoogleCloudPlatform的生成AI项目继续领跑，提供Gemini在Vertex AI上的示例
+4. **个人AI助手**：OpenClaw作为开源的个人AI助手项目也登上榜单
+5. **实用工具**：Win11Debloat等系统优化工具依然有稳定需求
 
 ## Daily Trending Repositories
 
 ### 1. GoogleCloudPlatform/generative-ai
-
-Sample code and notebooks for Generative AI on Google Cloud, with Gemini on Vertex AI
-
-- 🏷️ **Language:** Jupyter Notebook
-- 🔗 https://github.com/GoogleCloudPlatform/generative-ai
-
----
+Google Cloud生成AI示例代码和笔记本，包含Gemini 3.1 Pro最新模型的使用教程，涵盖Vertex AI上的RAG、搜索、视觉等用例
+- Language: Jupyter Notebook
+- https://github.com/GoogleCloudPlatform/generative-ai
 
 ### 2. openclaw/openclaw
-
-Your own personal AI assistant. Any OS. Any Platform. The lobster way. 🦞
-
-- 🏷️ **Language:** TypeScript
-- 🔗 https://github.com/openclaw/openclaw
-
----
+🦞 开源个人AI助手，可在任意平台和操作系统上运行，支持多种通讯渠道（WhatsApp、Telegram、Discord等）
+- Language: TypeScript
+- https://github.com/openclaw/openclaw
 
 ### 3. 666ghj/MiroFish
-
-A Simple and Universal Swarm Intelligence Engine, Predicting Anything. 简洁通用的群体智能引擎，预测万物
-
-- 🏷️ **Language:** Python
-- 🔗 https://github.com/666ghj/MiroFish
-
----
+简洁通用的群体智能引擎，通过多Agent技术预测万物。可构建高保真数字平行世界，推演未来走向
+- Language: Python
+- https://github.com/666ghj/MiroFish
 
 ### 4. karpathy/nanochat
-
-The best ChatGPT that $100 can buy.
-
-- 🏷️ **Language:** Python
-- 🔗 https://github.com/karpathy/nanochat
-
----
+Andrej Karpathy发布的最小化LLM训练实验框架，可在约100美元预算内训练GPT-2级别模型
+- Language: Python
+- https://github.com/karpathy/nanochat
 
 ### 5. 666ghj/BettaFish
-
-微舆：人人可用的多Agent舆情分析助手，打破信息茧房，还原舆情原貌，预测未来走向，辅助决策！从0实现，不依赖任何框架。
-
-- 🏷️ **Language:** Python
-- 🔗 https://github.com/666ghj/BettaFish
-
----
+微舆 - 多Agent舆情分析助手，可全自动分析国内外30+主流社媒，帮助打破信息茧房，还原舆情原貌
+- Language: Python
+- https://github.com/666ghj/BettaFish
 
 ### 6. NousResearch/hermes-agent
-
-The agent that grows with you
-
-- 🏷️ **Language:** Python
-- 🔗 https://github.com/NousResearch/hermes-agent
-
----
+可自学习的AI代理，具有内置学习循环，可创建技能、从经验中改进、跨会话记忆用户画像
+- Language: Python
+- https://github.com/NousResearch/hermes-agent
 
 ### 7. pbakaus/impeccable
-
-The design language that makes your AI harness better at design.
-
-- 🏷️ **Language:** JavaScript
-- 🔗 https://github.com/pbakaus/impeccable
-
----
+设计语言框架，帮助AI更好地理解和执行设计任务
+- Language: JavaScript
+- https://github.com/pbakaus/impeccable
 
 ### 8. msitarzewski/agency-agents
-
-A complete AI agency at your fingertips - From frontend wizards to Reddit community ninjas, from whimsy injectors to reality checkers. Each agent is a specialized expert with personality, processes, and proven deliverables.
-
-- 🏷️ **Language:** Shell
-- 🔗 https://github.com/msitarzewski/agency-agents
-
----
+完整的AI代理工厂，包含前端、Reddit社区、创意注入等多种专业化Agent
+- Language: Shell
+- https://github.com/msitarzewski/agency-agents
 
 ### 9. alibaba/page-agent
-
-JavaScript in-page GUI agent. Control web interfaces with natural language.
-
-- 🏷️ **Language:** TypeScript
-- 🔗 https://github.com/alibaba/page-agent
-
----
+阿里巴巴发布的页面内JavaScript GUI代理，可用自然语言控制网页界面
+- Language: TypeScript
+- https://github.com/alibaba/page-agent
 
 ### 10. alirezarezvani/claude-skills
-
-169 production-ready skills & plugins for Claude Code, OpenAI Codex, and OpenClaw — engineering, marketing, product, compliance, C-level advisory, and more. Install via /plugin marketplace.
-
-- 🏷️ **Language:** Python
-- 🔗 https://github.com/alirezarezvani/claude-skills
-
----
+169个生产级的Claude Code/OpenAI Codex技能和插件，涵盖工程、营销、产品、合规等领域
+- Language: Python
+- https://github.com/alirezarezvani/claude-skills
 
 ### 11. Raphire/Win11Debloat
-
-A simple, lightweight PowerShell script that allows you to remove pre-installed apps, disable telemetry, as well as perform various other changes to declutter and customize your Windows experience. Win11Debloat works for both Windows 10 and Windows 11.
-
-- 🏷️ **Language:** PowerShell
-- 🔗 https://github.com/Raphire/Win11Debloat
-
----
+轻量级PowerShell脚本，可移除预装应用、禁用遥测、定制Windows体验
+- Language: PowerShell
+- https://github.com/Raphire/Win11Debloat
 
 ### 12. teng-lin/notebooklm-py
-
-Unofficial Python API for Google NotebookLM
-
-- 🏷️ **Language:** Python
-- 🔗 https://github.com/teng-lin/notebooklm-py
-
----
-
-
-*共 12 个项目*
+Google NotebookLM的非官方Python API
+- Language: Python
+- https://github.com/teng-lin/notebooklm-py
