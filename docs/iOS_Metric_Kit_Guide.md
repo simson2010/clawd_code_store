@@ -4,7 +4,7 @@
 
 **作者**: King Lobster 🦞  
 **日期**: 2026-03-12  
-**更新**: 2026-03-12
+**更新**: 2026-03-14
 
 ---
 
@@ -15,6 +15,8 @@
 3. [冷启动数据收集](#3-冷启动数据收集)
 4. [实践代码](#4-实践代码)
 5. [启动优化指南](#5-启动优化指南)
+   - [5.0 启动阶段细分耗时深度解读](#50-启动阶段细分耗时深度解读)
+   - [5.1 常见优化策略](#51-常见优化策略)
 6. [数据查看与分析](#6-数据查看与分析)
 
 ---
@@ -502,6 +504,154 @@ final class LaunchTimeMonitor {
 
 ## 5. 启动优化指南
 
+### 5.0 启动阶段细分耗时深度解读
+
+#### 5.0.1 冷启动完整时间线
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        COLD LAUNCH                              │
+├──────────────────────┬──────────────────────────────────────────┤
+│   PRE-MAIN           │            POST-MAIN                    │
+│   (内核态)            │            (用户态)                      │
+├──────────────────────┼──────────────────────────────────────────┤
+│ 1. 内核引导          │ 5. UIKit 初始化                          │
+│ 2. 动态链接器加载    │ 6. AppDelegate lifecycle                  │
+│ 3. +load / C++ init  │ 7. 启动屏消失                             │
+│ 4. main() 函数       │ 8. 首帧渲染 / 首屏内容展示                │
+└──────────────────────┴──────────────────────────────────────────┘
+```
+
+#### 5.0.2 MetricKit 中的细分指标 (iOS 16+)
+
+| 阶段 | 关键指标 | 含义 |
+|------|---------|------|
+| **Time to First Draw** | `timestampFirstDraw` | 从 launch 到首帧渲染 |
+| **Application Initializers** | `initializerDuration` | `+load` / C++ 静态初始化耗时 |
+| **UIKit Setup** | `UIKitInitializationDuration` | UIKit 框架初始化 |
+| **Framework Load** | 隐含在初始化中 | 动态库加载时间 |
+
+#### iOS 17+ 增强的指标
+
+```swift
+// MXAppLaunchMetric 新增字段 (iOS 17+)
+let launchMetric = payload.applicationLaunchMetrics
+
+// 1. 完整启动耗时
+let totalDuration = launchMetric.duration
+
+// 2. 启动类型
+let launchType = launchMetric.launchType // .cold, .warm, .resume
+
+// 3. 初始化器耗时 (C++ static init, +load)
+let initDuration = launchMetric.initializerDuration
+
+// 4. 启动结束原因
+let termination = launchMetric.terminationReason
+```
+
+#### 5.0.3 各阶段耗时解读
+
+##### 1. PRE-MAIN 阶段（内核引导 + 动态链接）
+
+```
+典型耗时: 100-300ms (设备越新越快)
+```
+
+| 指标 | 正常范围 | 异常信号 |
+|------|---------|---------|
+| 动态链接器加载 | < 150ms | > 300ms 说明依赖过多 |
+| C++ 静态初始化 | < 50ms | > 100ms 有过多 static 变量 |
+
+**优化方向**：
+- 减少动态库依赖（合并 Framework）
+- 减少 `+load` 方法（改用 `+initialize` 或懒加载）
+- 减少 static 变量数量
+
+##### 2. POST-MAIN 阶段 - application(_:didFinishLaunchingWithOptions:)
+
+```
+典型耗时: 200-800ms
+```
+
+这个阶段包含：
+- 第三方 SDK 初始化
+- 数据库打开
+- 网络模块配置
+- 权限请求
+- 埋点初始化
+
+**优化方向**：
+- 异步初始化（非关键 SDK 延迟加载）
+- 按需加载模块
+- 避免在 `didFinishLaunching` 中做同步网络请求
+
+##### 3. 首帧渲染 (First Frame)
+
+```
+典型耗时: 100-500ms
+```
+
+这是用户感知最强的阶段：
+- 启动屏消失时间
+- 首个 `UIViewController` 的 `viewDidAppear` 完成
+
+**优化方向**：
+- 启动屏与首屏无缝衔接
+- 减少首屏 ViewController 的 `viewDidLoad` 工作
+- 预渲染首屏内容
+
+#### 5.0.4 实际数据解读示例
+
+假设 MetricKit 报告如下：
+
+```
+totalDuration:        1,450ms
+initializerDuration:  120ms    (8%)
+didFinishLaunching:   650ms    (45%)
+First Draw:           680ms    (47%)
+```
+
+**解读**：
+
+| 阶段 | 占比 | 评估 |
+|------|------|------|
+| 初始化器 | 8% | ✅ 正常范围 |
+| didFinishLaunching | 45% | ⚠️ 偏重，需优化 |
+| 首帧渲染 | 47% | ⚠️ 可能有过多 UI 构建 |
+
+**优化建议**：
+1. `didFinishLaunching` 中的任务异步化
+2. 检查首屏是否有过多 View 懒加载
+
+#### 5.0.5 性能基准参考
+
+| 设备类型 | 优秀 | 良好 | 需优化 | 严重 |
+|---------|------|------|-------|------|
+| iPhone 15 Pro | < 800ms | 800-1500ms | 1500-2500ms | > 2500ms |
+| iPhone 13 | < 1000ms | 1000-1800ms | 1800-3000ms | > 3000ms |
+| iPhone 11 | < 1200ms | 1200-2000ms | 2000-3500ms | > 3500ms |
+
+#### 5.0.6 细分阶段数据获取方法
+
+除了 MetricKit，还可以用 **Instruments** 辅助分析：
+
+```bash
+# Time Profiler
+# 打开 Xcode -> Product -> Profile -> Time Profiler
+
+# System Trace (iOS 15+)
+# 更细粒度的系统级分析
+```
+
+关键符号点：
+- `main()` 入口
+- `UIApplicationMain` 
+- `-[UIApplication run]`
+- `-[UIWindow makeKeyAndVisible]`
+
+---
+
 ### 5.1 常见优化策略
 
 #### 5.1.1 减少动态库依赖
@@ -734,6 +884,15 @@ Metric Kit 自动符号化，但需确保:
 
 **Q: 如何区分调试和发布环境的指标?**
 > A: Metric Kit 会在 Debug 模式下收集数据，但 Xcode Organizer 主要显示 Release 环境的统计。
+
+---
+
+## 更新日志
+
+| 日期 | 更新内容 |
+|------|----------|
+| 2026-03-12 | 初始版本，涵盖 MetricKit 基础使用 |
+| 2026-03-14 | 新增 5.0 启动阶段细分耗时深度解读 |
 
 ---
 
