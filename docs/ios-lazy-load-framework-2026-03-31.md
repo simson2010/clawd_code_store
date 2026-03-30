@@ -249,39 +249,94 @@ FrameworkLoadBenchmark.benchmarkLoad(named: "AnalyticsSDK", iterations: 10)
 2. 选择启动时间指标，按 iOS 版本和设备型号分类
 3. 优点：真实用户数据，缺点：有 24-48 小时延迟
 
-**MetricKit（可自定义埋点）：**
+**MetricKit（被动接收，无需手动埋点）：**
+
+> ⚠️ **重要修正**：上一版本的示例代码虽然 `import MetricKit`，但实际只调用了 `mach_absolute_time()` —— 这是 Darwin/Unix 标准 API，**与 MetricKit 完全无关**。本节已更正为真实的 MetricKit 用法。
+
+MetricKit 的设计哲学是**被动的**——开发者只需注册观察者，Apple 在 App 退出后自动在后台采集性能数据并上报。整个过程无需手动记录每个时间点。
+
+**`mach_absolute_time()` 与 MetricKit 的根本区别：**
+
+| | `mach_absolute_time()` | MetricKit |
+|---|---|---|
+| **性质** | Darwin/Unix 标准 API，任何代码都能用 | Apple 性能采集框架 |
+| **用法** | 开发者主动调用计时 | 系统自动采集，开发者只接收 |
+| **需要手动埋点吗** | ✅ 需要（每个时间点自己记录） | ❌ 不需要（系统自动测量） |
+| **实时性** | 实时 | 非实时（退出后聚合，最多 48h 延迟） |
+| **适合场景** | 开发阶段精确计时 | 发版后线上监控 |
 
 ```swift
 import MetricKit
 
+@main
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
-    private var launchStartTime: UInt64 = 0
+    /// ✅ MetricKit 真实用法：注册观察者，接收系统自动收集的数据
+    private let metricManager = MXMetricManager()
 
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
-        launchStartTime = mach_absolute_time()
-
-        DispatchQueue.main.async {
-            self.recordLaunchComplete()
-        }
+        // 注册成为 MetricKit 的观察者
+        // 从这一刻起，MetricKit 会自动在后台采集启动、内存、耗电等指标
+        metricManager.add(self)
 
         return true
     }
 
-    private func recordLaunchComplete() {
-        let elapsed = mach_absolute_time() - launchStartTime
-        var info = mach_timebase_info_data_t()
-        mach_timebase_info(&info)
-        let nanoseconds = elapsed * UInt64(info.numer) / UInt64(info.denom)
-        let milliseconds = Double(nanoseconds) / 1_000_000
+    func applicationWillTerminate(_ application: UIApplication) {
+        metricManager.remove(self)
+    }
+}
 
-        print("启动完成耗时: \(String(format: "%.2f", milliseconds)) ms")
+// ✅ 实现 MXMetricManagerSubscriber 协议，接收 MetricKit 的回调
+extension AppDelegate: MXMetricManagerSubscriber {
+
+    /// MetricKit 在 App 退出后自动聚合数据，然后调用此方法
+    /// payloads 包含本次会话的所有性能指标
+    func didReceive(_ payloads: [MXMetricPayload]) {
+        for payload in payloads {
+            // 启动相关指标（由系统自动采集，无需手动埋点）
+            if let launchMetric = payload.launchMetrics {
+                print("📱 启动时间（MetricKit 自动采集）：")
+                print("   主线程阻塞: \(launchMetric.mainThreadDuration) s")
+                print("   进程创建到首帧: \(launchMetric.timeToFirstDraw) s")
+            }
+
+            // 内存相关指标
+            if let memoryMetric = payload.memoryMetrics {
+                print("💾 内存峰值: \(memoryMetric.peakMemoryUsage) bytes")
+            }
+        }
+    }
+
+    /// 诊断快照：MetricKit 检测到异常（启动超时、主线程卡顿）时触发
+    func didReceive(_ diagnostics: [MXDiagnosticPayload]) {
+        for diagnostic in diagnostics {
+            if let launchDiagnostic = diagnostic.launchDiagnostics {
+                print("⚠️ 启动异常诊断:")
+                print("   主线程耗时: \(launchDiagnostic.mainThreadDuration) s")
+            }
+            if let hangDiagnostic = diagnostic.hangDiagnostics {
+                print("🔒 主线程卡顿: \(hangDiagnostic.hangDuration) s")
+            }
+        }
     }
 }
 ```
+
+**MetricKit 能自动采集的指标（完全无需手动埋点）：**
+
+| 指标类型 | 具体内容 | 说明 |
+|---|---|---|
+| **Launch** | `timeToFirstDraw`、`mainThreadDuration` | 系统测量，启动到首帧时间 |
+| **Memory** | `peakMemoryUsage`、`memoryLifecycle` | 内存峰值和生命周期 |
+| **Disk I/O** | `cumulativeLogicalWrites` | 磁盘写入量 |
+| **Network** | `cellularFailure`、`wifiFailure` | 网络请求失败统计 |
+| **App Quit** | `backgroundDuration`、`suspendedDuration` | App 进入后台和挂起时长 |
+
+> **重要**：MetricKit 数据**不是实时的**——Apple 在 App 退出后异步聚合，最长需要 24-48 小时才能在 Xcode Organizer 中看到。适合用于**发版后监控**，不适合开发阶段的即时调试。
 
 ---
 
