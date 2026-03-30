@@ -14,15 +14,28 @@
 
 在动手测量之前，理解 dyld 加载 Dynamic Framework 的内部过程，才能知道时间去哪儿了。
 
-#### 1.1 dyld 2 → dyld 3 → dyld 4 的演进
+#### 1.1 dyld 版本演进与 iOS 版本对应
+
+> 以下信息综合自 Apple 官方开源项目 [apple-oss-distributions/dyld](https://github.com/apple-oss-distributions/dyld) 的设计文档（`doc/dyld4.md`）以及 [crifan.org 的 dyld 逆向分析](https://book.crifan.org/books/ios_re_dyld_link/website/dyld_overview/dyld_versions.html)。
 
 | 版本 | iOS 版本 | 核心变化 |
 |---|---|---|
-| **dyld 2** | iOS 0 ~ iOS 12 | 纯实时加载，每次启动完整解析所有依赖链 |
-| **dyld 3** | iOS 13 ~ iOS 16 | 引入启动缓存（`/tmp/com.apple.dyld/`），依赖解析结果缓存到磁盘，下次启动直接读缓存 |
-| **dyld 4** | iOS 17+ | 进一步优化并行符号解析、PAC 指针认证开销、惰性绑定 |
+| **dyld 2** | iOS 0 ~ iOS 12 | 纯实时加载，每次启动完整遍历所有 dylib 依赖链，解析所有符号 |
+| **dyld 3** | iOS 13 ~ iOS 16 | 引入**闭包（Closure）机制**——在后台预计算依赖解析结果并缓存到 `/tmp/com.apple.dyld/`；启动时直接读缓存，跳过重复解析 |
+| **dyld 4** | iOS 17+ | 引入 **PrebuiltLoader + JustInTimeLoader 双模式**，统一代码库，改进开发调试场景下的灵活性；保留 dyld3 缓存性能 |
 
-dyld 3 的缓存机制使得**重复启动**时间大幅缩短，但**首次冷启动**（系统更新后、App 更新后）依然要完整走完整个加载流程。
+**关于 dyld 4 的官方说明（来源：Apple 开源仓库 `doc/dyld4.md`）：**
+
+> *"The goal of dyld4 is to improve on dyld3 by keeping the same mach-o parsers, but do better in the non-customer case by supporting just-in-time loading that does not require a pre-built closures."*
+
+**dyld 3 的 iOS 版本来源（来源：crifan.org，2024-10-15）：**
+
+> *"dyld3 在很早就引入，但最初仅用于 Apple 自家的 App 或系统库。**从 iOS 13 开始，dyld3 正式替代 dyld2，用于加载设备上所有的 App**。"*
+
+**注意**：dyld 3 的缓存机制使得**重复启动**时间大幅缩短，但以下情况仍需要完整走加载流程（缓存失效）：
+- 系统更新后
+- App 版本升级后
+- Xcode Clean Build 后
 
 #### 1.2 dyld 加载一个 Dynamic Framework 的 6 个子步骤
 
