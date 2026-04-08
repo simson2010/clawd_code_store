@@ -16,6 +16,8 @@ clawd_code_store/
 │   └── 2026-03/
 ├── hackernews/
 ├── docs/
+├── life/
+│   └── 2026-04/
 ├── README.md
 ├── .gitignore
 └── LICENSE
@@ -27,6 +29,7 @@ clawd_code_store/
 |-----|------|---------|
 | GitHub Trending | `github_trending_YYYY-MM-DD.md` 或 `github_trending_YYYY_MM_DD.md` | `github-trending/YYYY-MM/` |
 | HackerNews | `hackernews_YYYY-MM-DD.md` | `hackernews/` |
+| 生活/新闻精选 | `YYYY-MM-DD.md` | `life/YYYY-MM/` |
 
 ## 更新指引
 
