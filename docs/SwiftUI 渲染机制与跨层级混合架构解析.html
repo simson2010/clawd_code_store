@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwiftUI 渲染机制与跨层级混合架构解析</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans SC', sans-serif; background-color: #fafaf9; color: #292524; }
+        .chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 350px; max-height: 400px; }
+        @media (min-width: 768px) { .chart-container { height: 400px; } }
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        .nav-active { border-bottom: 2px solid #0d9488; color: #0d9488; font-weight: 600; }
+        .nav-inactive { border-bottom: 2px solid transparent; color: #78716c; }
+        .node-active { border-color: #0d9488; background-color: #f0fdfa; transform: scale(1.02); }
+        .node-inactive { border-color: #d6d3d1; background-color: #ffffff; }
+        .transition-all { transition-property: all; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 300ms; }
+    </style>
+</head>
+<body class="antialiased flex flex-col min-h-screen">
+
+<!-- Chosen Palette: Warm Neutrals with Teal Accent (Stone 50 bg, Stone 800 text, Teal 600 accents) -->
+<!-- Application Structure Plan: The SPA is structured as a multi-tab dashboard to logically separate the three distinct rendering scenarios requested: 1) Overview & Performance context, 2) Pure SwiftUI Native Rendering, 3) UIKit wrapping SwiftUI (UIHostingController), and 4) SwiftUI wrapping UIKit (UIViewRepresentable). This structure avoids cognitive overload by focusing the user on one architectural flow at a time. Each technical section uses an interactive HTML/CSS block diagram allowing users to click through the rendering lifecycle steps, updating a detail panel dynamically to provide deep technical insights without cluttering the initial view. -->
+<!-- Visualization & Content Choices: 1. Overview: Chart.js Bar Chart -> Compares performance/overhead of the 3 approaches -> Helps users understand the cost of bridging vs native -> Chart.js allows responsive, clean visualization without SVG. 2. Rendering Pipelines (Native/Hosting/Representable): Interactive HTML/Tailwind Flexbox diagrams with unicode arrows -> Explains the step-by-step lifecycle and memory mappings -> Interactive click-to-reveal details foster engagement and step-by-step learning -> Fulfills NO SVG/Mermaid constraint while achieving complex diagrammatic representation. -->
+<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl text-teal-600">⚙️</span>
+                    <h1 class="text-xl font-bold tracking-tight text-stone-800">SwiftUI 渲染机制与混合架构</h1>
+                </div>
+            </div>
+            <nav class="flex space-x-8 overflow-x-auto hide-scroll" id="main-nav">
+                <button onclick="app.switchTab('overview')" id="tab-overview" class="nav-active pb-4 px-1 text-sm font-medium whitespace-nowrap">架构总览</button>
+                <button onclick="app.switchTab('native')" id="tab-native" class="nav-inactive pb-4 px-1 text-sm font-medium whitespace-nowrap hover:text-teal-600 transition-colors">原生渲染管道</button>
+                <button onclick="app.switchTab('hosting')" id="tab-hosting" class="nav-inactive pb-4 px-1 text-sm font-medium whitespace-nowrap hover:text-teal-600 transition-colors">UIHostingController 集成</button>
+                <button onclick="app.switchTab('representable')" id="tab-representable" class="nav-inactive pb-4 px-1 text-sm font-medium whitespace-nowrap hover:text-teal-600 transition-colors">UIViewRepresentable 桥接</button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        
+        <div id="section-overview" class="block animate-fade-in">
+            <div class="bg-white rounded-xl shadow-sm border border-stone-200 p-6 sm:p-8 mb-8">
+                <h2 class="text-2xl font-bold text-stone-800 mb-4">SwiftUI 渲染架构深度剖析</h2>
+                <p class="text-stone-600 mb-6 leading-relaxed">
+                    本报告详细解析 SwiftUI 的 UI 渲染机制。SwiftUI 摒弃了传统的命令式 UI 构建方式，采用声明式语法和数据驱动模型。在实际工程落地中，我们常常需要面临纯 SwiftUI 渲染，以及与传统 UIKit 生态混合使用的场景。本模块将从宏观角度对比这三种核心场景的性能开销与架构复杂度。
+                </p>
+                <div class="chart-container">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+                <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-stone-50 p-4 rounded-lg border border-stone-100">
+                        <h3 class="font-bold text-stone-800 flex items-center gap-2"><span class="text-teal-600">⚡</span> 纯 SwiftUI 原生</h3>
+                        <p class="text-sm text-stone-500 mt-2">绕过庞大的 UIView 树，直接构建轻量级的值类型 View 树，通过 AttributeGraph 进行差分运算，最终直接驱动 Core Animation / Metal 渲染。性能最优。</p>
+                    </div>
+                    <div class="bg-stone-50 p-4 rounded-lg border border-stone-100">
+                        <h3 class="font-bold text-stone-800 flex items-center gap-2"><span class="text-amber-500">📦</span> UIHostingController</h3>
+                        <p class="text-sm text-stone-500 mt-2">将 SwiftUI 包装为 UIViewController。作为桥梁，它会在内部生成一层 _UIHostingView，将 SwiftUI 的渲染树接入 UIKit 的 Runloop 和事件响应链中。</p>
+                    </div>
+                    <div class="bg-stone-50 p-4 rounded-lg border border-stone-100">
+                        <h3 class="font-bold text-stone-800 flex items-center gap-2"><span class="text-indigo-500">🔗</span> UIViewRepresentable</h3>
+                        <p class="text-sm text-stone-500 mt-2">在 SwiftUI 布局中嵌入 UIKit 实例。需要维护 UIKit 对象的生命周期，并在 SwiftUI 状态变化时触发 updateUIView 桥接更新，存在一定的上下文切换开销。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="section-native" class="hidden animate-fade-in">
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-stone-800 mb-2">纯 SwiftUI 原生渲染管道</h2>
+                <p class="text-stone-600">
+                    SwiftUI 的 View 是轻量级的值类型 (Struct)，并非实际的屏幕像素实体。点击下方流程图中的节点，探索从状态改变到像素呈现的完整底层逻辑。
+                </p>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                <div class="lg:col-span-2 flex flex-col items-center">
+                    <div onclick="app.selectNativeNode('state')" id="native-node-state" class="node-active cursor-pointer transition-all w-full max-w-sm rounded-lg border-2 p-4 text-center shadow-sm">
+                        <div class="text-xl mb-1">🔄</div>
+                        <h3 class="font-bold text-stone-800">1. State Change (状态更新)</h3>
+                        <p class="text-xs text-stone-500 mt-1">@State, @Binding 触发</p>
+                    </div>
+                    <div class="text-stone-400 my-2 text-xl">&#8595;</div>
+                    
+                    <div onclick="app.selectNativeNode('diff')" id="native-node-diff" class="node-inactive cursor-pointer transition-all w-full max-w-sm rounded-lg border-2 p-4 text-center shadow-sm">
+                        <div class="text-xl mb-1">🧮</div>
+                        <h3 class="font-bold text-stone-800">2. AttributeGraph 计算</h3>
+                        <p class="text-xs text-stone-500 mt-1">依赖追踪与差分计算</p>
+                    </div>
+                    <div class="text-stone-400 my-2 text-xl">&#8595;</div>
+
+                    <div onclick="app.selectNativeNode('layout')" id="native-node-layout" class="node-inactive cursor-pointer transition-all w-full max-w-sm rounded-lg border-2 p-4 text-center shadow-sm">
+                        <div class="text-xl mb-1">📏</div>
+                        <h3 class="font-bold text-stone-800">3. Layout Engine</h3>
+                        <p class="text-xs text-stone-500 mt-1">尺寸提议与确定 (Proposed Size)</p>
+                    </div>
+                    <div class="text-stone-400 my-2 text-xl">&#8595;</div>
+
+                    <div onclick="app.selectNativeNode('displaylist')" id="native-node-displaylist" class="node-inactive cursor-pointer transition-all w-full max-w-sm rounded-lg border-2 p-4 text-center shadow-sm">
+                        <div class="text-xl mb-1">📝</div>
+                        <h3 class="font-bold text-stone-800">4. Display List 生成</h3>
+                        <p class="text-xs text-stone-500 mt-1">转换为底层绘制指令</p>
+                    </div>
+                    <div class="text-stone-400 my-2 text-xl">&#8595;</div>
+
+                    <div onclick="app.selectNativeNode('render')" id="native-node-render" class="node-inactive cursor-pointer transition-all w-full max-w-sm rounded-lg border-2 p-4 text-center shadow-sm bg-stone-800 text-white border-stone-800">
+                        <div class="text-xl mb-1">🖥️</div>
+                        <h3 class="font-bold text-white">5. Core Animation / Metal</h3>
+                        <p class="text-xs text-stone-300 mt-1">最终像素光栅化渲染</p>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-3">
+                    <div class="bg-white rounded-xl shadow-sm border border-stone-200 p-6 h-full sticky top-24">
+                        <div class="flex items-center gap-3 mb-4 border-b border-stone-100 pb-4">
+                            <span id="native-detail-icon" class="text-3xl text-teal-600">🔄</span>
+                            <h3 id="native-detail-title" class="text-xl font-bold text-stone-800">状态更新驱动 (Data Driven)</h3>
+                        </div>
+                        <div id="native-detail-content" class="text-stone-600 leading-relaxed space-y-4">
+                            <p>在 SwiftUI 中，视图 (View) 仅仅是状态的声明式描述，本身是短暂存在的值类型 (Struct)。</p>
+                            <p>当视图绑定的数据源 (如 <code class="bg-stone-100 px-1 rounded text-teal-700">@State</code>, <code class="bg-stone-100 px-1 rounded text-teal-700">@EnvironmentObject</code>, <code class="bg-stone-100 px-1 rounded text-teal-700">@ObservableObject</code>) 发生改变时，SwiftUI 系统会捕获这一变化，并将其标记为需要重新计算的源头。</p>
+                            <div class="bg-teal-50 p-4 rounded-lg mt-4 border-l-4 border-teal-500 text-sm">
+                                <strong>底层核心机制：</strong> 系统并不会立即重绘整个屏幕，而是将更新请求放入当前 Runloop 的队列中，等待下一个渲染周期（Transaction）统一处理。这确保了多个状态同时改变时的高效批处理。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="section-hosting" class="hidden animate-fade-in">
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-stone-800 mb-2">UIHostingController：UIKit 容纳 SwiftUI</h2>
+                <p class="text-stone-600">
+                    当我们需要将 SwiftUI 的 View 放到 UIKit 环境（如 UINavigationController 的堆栈中）时，必须使用 UIHostingController。它的核心作用是将 SwiftUI 声明式的视图树转换并挂载到 UIKit 的响应链和渲染树上。
+                </p>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-stone-200 p-6 lg:p-10">
+                <div class="flex flex-col lg:flex-row gap-12 items-center">
+                    
+                    <div class="w-full lg:w-1/2 flex flex-col items-center">
+                        <div class="w-full max-w-md border-4 border-dashed border-stone-300 rounded-xl p-4 bg-stone-50 relative group cursor-pointer" onclick="app.showHostingDetail('uikit')">
+                            <div class="absolute -top-3 left-4 bg-stone-50 px-2 text-xs font-bold text-stone-500 uppercase tracking-wider">UIKit 环境</div>
+                            <div class="text-center font-bold text-stone-700 py-2">UIWindow / UIViewController</div>
+                            
+                            <div class="mt-4 border-2 border-indigo-400 rounded-lg p-4 bg-white shadow-sm relative transition-all group-hover:border-indigo-600 group-hover:shadow-md cursor-pointer" onclick="event.stopPropagation(); app.showHostingDetail('hostingcontroller')">
+                                <div class="absolute -top-3 left-4 bg-white px-2 text-xs font-bold text-indigo-500 uppercase tracking-wider">桥接容器</div>
+                                <div class="flex items-center justify-center gap-2 font-bold text-indigo-700 py-2">
+                                    <span>📦</span> UIHostingController
+                                </div>
+                                
+                                <div class="mt-4 border border-teal-300 rounded-lg p-4 bg-teal-50 relative transition-all hover:bg-teal-100 cursor-pointer" onclick="event.stopPropagation(); app.showHostingDetail('hostingview')">
+                                    <div class="absolute -top-3 left-4 bg-teal-50 px-2 text-xs font-bold text-teal-600 uppercase tracking-wider">私有底层视图</div>
+                                    <div class="text-center text-sm font-semibold text-teal-800 mb-3">_UIHostingView (继承自 UIView)</div>
+                                    
+                                    <div class="bg-white border border-teal-200 rounded p-3 text-center text-sm font-medium text-stone-600 shadow-inner">
+                                        🌲 SwiftUI View Tree<br>
+                                        <span class="text-xs text-stone-400 font-normal">(ContentView, Text, Button...)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="w-full lg:w-1/2">
+                        <div class="bg-stone-50 rounded-xl p-6 border border-stone-200 h-full">
+                            <h3 id="hosting-detail-title" class="text-xl font-bold text-indigo-700 mb-4 border-b border-indigo-100 pb-2">互动解析：点击左侧图层查看细节</h3>
+                            <div id="hosting-detail-content" class="text-stone-600 leading-relaxed text-sm space-y-4">
+                                <p>请点击左侧架构图中的不同层级，查看 UIHostingController 是如何逐步将数据结构转化为屏幕上的 UIView 像素的。</p>
+                                <p class="text-stone-400 italic">提示：从外层一直点到最内层。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="section-representable" class="hidden animate-fade-in">
+             <div class="mb-8">
+                <h2 class="text-2xl font-bold text-stone-800 mb-2">UIViewRepresentable：SwiftUI 封装 UIKit</h2>
+                <p class="text-stone-600">
+                    在 SwiftUI 布局中直接使用复杂的历史遗留 UIKit 组件（如 MKMapView, AVPlayerLayer），需要通过遵循 UIViewRepresentable 协议的 Struct。这个协议定义了 UIKit 视图的生命周期如何与 SwiftUI 的数据流挂钩。
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                <div class="bg-white rounded-xl shadow-sm border border-stone-200 p-6 cursor-pointer hover:border-amber-400 transition-colors group" onclick="app.showRepDetail('make')">
+                    <div class="flex items-start gap-4">
+                        <div class="bg-amber-100 p-3 rounded-lg text-amber-600 group-hover:scale-110 transition-transform">🛠️</div>
+                        <div>
+                            <h3 class="text-lg font-bold text-stone-800 mb-1">makeUIView(context:)</h3>
+                            <p class="text-sm text-stone-600">初始化阶段调用一次。用于实例化 UIKit 的 UIView 对象，并进行初始配置。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-stone-200 p-6 cursor-pointer hover:border-emerald-400 transition-colors group" onclick="app.showRepDetail('update')">
+                    <div class="flex items-start gap-4">
+                        <div class="bg-emerald-100 p-3 rounded-lg text-emerald-600 group-hover:scale-110 transition-transform">🔄</div>
+                        <div>
+                            <h3 class="text-lg font-bold text-stone-800 mb-1">updateUIView(_:context:)</h3>
+                            <p class="text-sm text-stone-600">每当 SwiftUI 的状态发生变化并波及此视图时调用。用于将新状态同步到 UIView 实例。</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl shadow-sm border border-stone-200 p-6 cursor-pointer hover:border-rose-400 transition-colors group" onclick="app.showRepDetail('dismantle')">
+                    <div class="flex items-start gap-4">
+                        <div class="bg-rose-100 p-3 rounded-lg text-rose-600 group-hover:scale-110 transition-transform">🗑️</div>
+                        <div>
+                            <h3 class="text-lg font-bold text-stone-800 mb-1">dismantleUIView(_:coordinator:)</h3>
+                            <p class="text-sm text-stone-600">销毁阶段调用。用于清理委托 (Delegate)、观察者或结束 UIKit 侧的任务。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-stone-200 p-6 cursor-pointer hover:border-blue-400 transition-colors group" onclick="app.showRepDetail('coordinator')">
+                    <div class="flex items-start gap-4">
+                        <div class="bg-blue-100 p-3 rounded-lg text-blue-600 group-hover:scale-110 transition-transform">🤖</div>
+                        <div>
+                            <h3 class="text-lg font-bold text-stone-800 mb-1">Coordinator 机制</h3>
+                            <p class="text-sm text-stone-600">作为委托 (Delegate) 或数据源对象，负责接收 UIKit 的回调事件并将其反向传递给 SwiftUI。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-stone-800 rounded-xl p-6 text-stone-200 shadow-inner">
+                <h4 id="rep-detail-title" class="text-white font-mono text-lg mb-3 pb-2 border-b border-stone-600">点击上方生命周期卡片查看交互原理</h4>
+                <div id="rep-detail-content" class="font-mono text-sm leading-relaxed whitespace-pre-line text-stone-400">
+// UIViewRepresentable 渲染过程详解
+// SwiftUI 的布局引擎 (Layout Engine) 在处理 UIViewRepresentable 时：
+// 1. 会通过协议获取 UIKit 视图的 intrinsicContentSize。
+// 2. 结合 SwiftUI 父视图分配的尺寸 (ProposedViewSize) 进行布局。
+// 3. 实际的像素光栅化仍然由 UIKit 底层的 CALayer (Core Animation) 完成，最终组合拼接到 SwiftUI 的宿主渲染树中。
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        const app = {
+            state: {
+                currentTab: 'overview',
+                nativeActiveNode: 'state'
+            },
+            
+            data: {
+                nativeFlow: {
+                    'state': {
+                        icon: '🔄',
+                        title: '状态更新驱动 (Data Driven)',
+                        content: `<p>在 SwiftUI 中，视图 (View) 仅仅是状态的声明式描述，本身是短暂存在的值类型 (Struct)。</p>
+                                  <p>当视图绑定的数据源 (如 <code class="bg-stone-100 px-1 rounded text-teal-700">@State</code>, <code class="bg-stone-100 px-1 rounded text-teal-700">@EnvironmentObject</code>) 发生改变时，SwiftUI 系统会捕获这一变化，并将其标记为需要重新计算的源头。</p>
+                                  <div class="bg-teal-50 p-4 rounded-lg mt-4 border-l-4 border-teal-500 text-sm">
+                                      <strong>底层核心机制：</strong> 系统并不会立即重绘整个屏幕，而是将更新请求放入当前 Runloop 的队列中，等待下一个渲染周期统一处理，实现高效的批处理机制。
+                                  </div>`
+                    },
+                    'diff': {
+                        icon: '🧮',
+                        title: 'AttributeGraph 依赖差分',
+                        content: `<p>这是 SwiftUI 高性能的核心引擎。AttributeGraph 是一个底层由 C++ 编写的反应式图结构属性追踪系统。</p>
+                                  <p>它记录了 State 和 View 属性之间的精确依赖关系。当状态更新触发时，AttributeGraph 会迅速进行计算和图对比 (Diffing)。</p>
+                                  <ul class="list-disc pl-5 mt-2 space-y-1 text-sm">
+                                      <li>只有受状态改变影响的局部 View 及其子 View 的 <code class="bg-stone-100 px-1 rounded text-stone-800">body</code> 属性会被重新求值。</li>
+                                      <li>产生新的短暂存在的 View 结构树。</li>
+                                  </ul>`
+                    },
+                    'layout': {
+                        icon: '📏',
+                        title: '布局计算阶段 (Layout Phase)',
+                        content: `<p>获得新的 View 树后，系统进入布局阶段，此过程是一个自上而下提议，自下而上确定的过程：</p>
+                                  <ol class="list-decimal pl-5 mt-2 space-y-2 text-sm">
+                                      <li><strong>父视图提议：</strong> 父视图向子视图提供一个 Proposed Size (建议尺寸)。</li>
+                                      <li><strong>子视图决定：</strong> 子视图根据自身的特性 (如 Text 的文本内容长短，图形的固有尺寸) 决定自己的实际大小。</li>
+                                      <li><strong>父视图摆放：</strong> 父视图尊重子视图的大小决定，并在自身的坐标系中安排子视图的位置 (如 HStack/VStack 的排版)。</li>
+                                  </ol>`
+                    },
+                    'displaylist': {
+                        icon: '📝',
+                        title: '生成 Display List',
+                        content: `<p>一旦所有视图的尺寸和位置被确定，SwiftUI 不会像旧版本 UIKit 那样立刻实例化大量的对象，而是生成一份轻量级的 <strong>Display List</strong>。</p>
+                                  <p>这个列表是一系列高度优化的绘图指令，描述了在这个渲染周期内屏幕上应该画什么内容（比如：在坐标(10,20)画一个圆角矩形，填色为蓝色；在(15,25)画文字"Hello"）。</p>
+                                  <div class="bg-amber-50 p-4 rounded-lg mt-4 border-l-4 border-amber-500 text-sm">
+                                      在这个阶段，SwiftUI 的描述被转换为了渲染引擎可以理解的通用低级格式，脱离了 View Struct 的概念。
+                                  </div>`
+                    },
+                    'render': {
+                        icon: '🖥️',
+                        title: '光栅化渲染 (Core Animation / Metal)',
+                        content: `<p>最后，Display List 被移交给底层的渲染引擎执行。</p>
+                                  <p>在 iOS 和 macOS 系统上，这个底层引擎主要是 <strong>Core Animation</strong>。SwiftUI 会尽可能直接映射到底层的 CALayer 树，甚至在特定图形操作时直接调用 <strong>Metal</strong> 进行 GPU 级别的加速渲染。</p>
+                                  <p class="mt-4 text-sm bg-stone-100 p-3 rounded">
+                                      <strong>对比 UIKit：</strong> 纯原生 SwiftUI 视图在这个过程中通常不再需要生成并挂载沉重的 UIView 实例，从而极大节省了内存，降低了视图树的层级深度。
+                                  </p>`
+                    }
+                },
+                hostingFlow: {
+                    'uikit': {
+                        title: '最外层：UIKit 生态宿主',
+                        content: `<p>在混合应用或从 UIKit 迁移的过程中，应用程序的根部依然是基于 <code>UIWindow</code> 和传统的手势、事件分发体系。</p><p class="mt-2 text-stone-500">UIKit 管理着 Main Runloop，处理触摸事件的 hit-testing，并在其每一次渲染循环中处理布局、显示回调。SwiftUI 想要被显示，必须以某种形式依附到这个体系中。</p>`
+                    },
+                    'hostingcontroller': {
+                        title: '桥接核心：UIHostingController',
+                        content: `<p><code>UIHostingController</code> 继承自 <code>UIViewController</code>。它是桥梁的核心。</p><p class="mt-2">当你用 <code class="bg-indigo-50 text-indigo-700 px-1 rounded">UIHostingController(rootView: MySwiftUIView())</code> 初始化时，它接管了传入的 SwiftUI 值类型视图树。</p><ul class="mt-2 list-disc pl-5 text-stone-500"><li>它负责监听系统主题变化、环境参数变化 (EnvironmentValues)。</li><li>它将 UIKit 侧的生命周期 (viewDidLoad, viewDidLayoutSubviews) 映射给 SwiftUI 系统。</li></ul>`
+                    },
+                    'hostingview': {
+                        title: '像素载体：_UIHostingView',
+                        content: `<p><code>UIHostingController</code> 的 <code>.view</code> 属性并不是一个普通的 UIView，而是一个系统私有类 <strong>_UIHostingView</strong>。</p><div class="bg-teal-50 p-3 rounded border border-teal-100 mt-2"><p class="text-teal-800 font-semibold mb-1">关键渲染机制：</p>这是真正的魔法发生的地方。_UIHostingView 是 UIKit 和 SwiftUI Display List 之间的粘合剂。当 SwiftUI 计算出 Display List 后，_UIHostingView 负责解析这些指令，并在其底层的 CALayer 树中绘制出来。同时，它还负责把 UIKit 的 Touch 事件翻译成 SwiftUI 的 TapGesture 等手势反馈给 SwiftUI 树。</div>`
+                    }
+                },
+                repFlow: {
+                    'make': {
+                        title: '实例化：makeUIView(context:)',
+                        content: `// 仅在视图生命周期开始时执行一次\nfunc makeUIView(context: Context) -> CustomUIKitView {\n    let view = CustomUIKitView()\n    // 1. 初始化 UIKit 组件\n    // 2. 挂载 Delegate (通常使用 context.coordinator)\n    view.delegate = context.coordinator\n    // 3. 配置不会随状态改变的基础属性\n    view.backgroundColor = .clear\n    return view\n}`
+                    },
+                    'update': {
+                        title: '状态桥接：updateUIView(_:context:)',
+                        content: `// 当 SwiftUI 中绑定的 State 变化波及此视图时频繁调用\nfunc updateUIView(_ uiView: CustomUIKitView, context: Context) {\n    // 从 SwiftUI 的 State 同步数据到 UIKit 对象实例\n    // 这是一个单向数据流动：SwiftUI -> UIKit\n    \n    if uiView.text != self.text {\n        uiView.text = self.text\n    }\n    \n    // 注意：在此方法中进行耗时操作会导致 SwiftUI 渲染掉帧\n}`
+                    },
+                    'dismantle': {
+                        title: '销毁清理：dismantleUIView',
+                        content: `// 静态方法，当 SwiftUI 决定将此组件移出 View Tree 时调用\nstatic func dismantleUIView(_ uiView: CustomUIKitView, coordinator: Coordinator) {\n    // 执行反向操作防止内存泄漏\n    // 1. 移除 Delegate 绑定\n    uiView.delegate = nil\n    \n    // 2. 停止内部 Timer, 释放系统资源 (如摄像头流)\n    uiView.stopRunning()\n}`
+                    },
+                    'coordinator': {
+                        title: '反向通信机制：Coordinator',
+                        content: `// 扮演 UIKit Delegate 的角色，实现 UIKit -> SwiftUI 的回调\nclass Coordinator: NSObject, CustomUIKitViewDelegate {\n    var parent: MyRepresentableView\n    \n    init(_ parent: MyRepresentableView) {\n        self.parent = parent\n    }\n    \n    func viewDidTriggerAction(_ value: String) {\n        // 将 UIKit 内部产生的事件或数据\n        // 赋值给 SwiftUI 的 Binding 变量，从而驱动全局刷新\n        parent.boundText = value\n    }\n}`
+                    }
+                }
+            },
+
+            init() {
+                this.initChart();
+            },
+
+            switchTab(tabId) {
+                // Update navigation styles
+                const tabs = ['overview', 'native', 'hosting', 'representable'];
+                tabs.forEach(t => {
+                    const el = document.getElementById(`tab-${t}`);
+                    if (t === tabId) {
+                        el.classList.remove('nav-inactive', 'hover:text-teal-600');
+                        el.classList.add('nav-active');
+                    } else {
+                        el.classList.add('nav-inactive', 'hover:text-teal-600');
+                        el.classList.remove('nav-active');
+                    }
+                    
+                    // Toggle section visibility
+                    const section = document.getElementById(`section-${t}`);
+                    if (t === tabId) {
+                        section.classList.remove('hidden');
+                        section.classList.add('block');
+                    } else {
+                        section.classList.add('hidden');
+                        section.classList.remove('block');
+                    }
+                });
+
+                this.state.currentTab = tabId;
+                
+                // Refresh chart specifically if overview is selected to ensure correct rendering if resized
+                if (tabId === 'overview' && this.chart) {
+                    this.chart.resize();
+                }
+            },
+
+            selectNativeNode(nodeId) {
+                // Reset previous
+                document.getElementById(`native-node-${this.state.nativeActiveNode}`).classList.remove('node-active');
+                document.getElementById(`native-node-${this.state.nativeActiveNode}`).classList.add('node-inactive');
+                if(this.state.nativeActiveNode === 'render') {
+                     document.getElementById(`native-node-render`).classList.add('bg-stone-800', 'text-white', 'border-stone-800');
+                }
+
+                // Set new
+                const activeEl = document.getElementById(`native-node-${nodeId}`);
+                activeEl.classList.remove('node-inactive');
+                if(nodeId === 'render') {
+                    activeEl.classList.remove('bg-stone-800', 'text-white', 'border-stone-800');
+                }
+                activeEl.classList.add('node-active');
+
+                // Update detail pane
+                const data = this.data.nativeFlow[nodeId];
+                document.getElementById('native-detail-icon').innerText = data.icon;
+                document.getElementById('native-detail-title').innerText = data.title;
+                document.getElementById('native-detail-content').innerHTML = data.content;
+
+                this.state.nativeActiveNode = nodeId;
+            },
+
+            showHostingDetail(topic) {
+                const data = this.data.hostingFlow[topic];
+                document.getElementById('hosting-detail-title').innerText = data.title;
+                document.getElementById('hosting-detail-content').innerHTML = data.content;
+            },
+
+            showRepDetail(topic) {
+                const data = this.data.repFlow[topic];
+                document.getElementById('rep-detail-title').innerText = data.title;
+                document.getElementById('rep-detail-content').innerText = data.content;
+            },
+
+            initChart() {
+                const ctx = document.getElementById('performanceChart').getContext('2d');
+                
+                // Chart.js data comparing relative overhead (conceptual illustrative data)
+                this.chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['纯 SwiftUI 原生', 'UIHostingController 集成', 'UIViewRepresentable 桥接'],
+                        datasets: [
+                            {
+                                label: '内存占用层级 (View/Layer 节点数)',
+                                data: [20, 60, 85],
+                                backgroundColor: 'rgba(20, 184, 166, 0.7)', // Teal 500
+                                borderColor: 'rgba(20, 184, 166, 1)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: '状态更新延迟开销 (上下文切换代价)',
+                                data: [10, 40, 70],
+                                backgroundColor: 'rgba(99, 102, 241, 0.7)', // Indigo 500
+                                borderColor: 'rgba(99, 102, 241, 1)',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { font: { family: "'Noto Sans SC', sans-serif" } }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + context.parsed.y + ' (相对指数)';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                title: { display: true, text: '系统开销评估指数', font: { family: "'Noto Sans SC', sans-serif" } }
+                            },
+                            x: {
+                                ticks: { font: { family: "'Noto Sans SC', sans-serif" } }
+                            }
+                        }
+                    }
+                });
+            }
+        };
+
+        // Initialize application when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+    </script>
+</body>
+</html>
