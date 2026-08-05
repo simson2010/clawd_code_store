@@ -5,6 +5,7 @@ class MainViewController: UIViewController {
     private let draftTextView = UITextView()
     private let segment = UISegmentedControl(items: ["红", "绿", "蓝"])
     private let incrementButton = UIButton(type: .system)
+    private let openSecondaryButton = UIButton(type: .system)
     private var counter = 0
 
     override func viewDidLoad() {
@@ -26,7 +27,11 @@ class MainViewController: UIViewController {
         draftTextView.frame = CGRect(x: 0, y: 0, width: 300, height: 120)
         segment.selectedSegmentIndex = 0
 
-        let stack = UIStackView(arrangedSubviews: [counterLabel, incrementButton, draftTextView, segment])
+        openSecondaryButton.setTitle("打开次级场景（发通知）", for: .normal)
+        openSecondaryButton.titleLabel?.font = .systemFont(ofSize: 18)
+        openSecondaryButton.addTarget(self, action: #selector(postSwitch), for: .touchUpInside)
+
+        let stack = UIStackView(arrangedSubviews: [counterLabel, incrementButton, draftTextView, segment, openSecondaryButton])
         stack.axis = .vertical; stack.spacing = 16
         stack.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(stack)
@@ -39,6 +44,11 @@ class MainViewController: UIViewController {
     }
 
     @objc private func increment() { counter += 1; counterLabel.text = "计数: \(counter)" }
+
+    /// 发「切换到次级场景」通知——由 SceneDelegate 监听到后创建新场景
+    @objc private func postSwitch() {
+        NotificationCenter.default.post(name: SceneSwitchNotification.switchToSecondary, object: nil)
+    }
 
     func restore(from activity: NSUserActivity) {
         guard let info = activity.userInfo else { return }

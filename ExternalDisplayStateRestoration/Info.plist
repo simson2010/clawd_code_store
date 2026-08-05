@@ -37,6 +37,12 @@
                     <key>UISceneStoryboardFile</key>
                     <string>Main</string>
                 </dict>
+                <dict>
+                    <key>UISceneConfigurationName</key>
+                    <string>Secondary Configuration</string>
+                    <key>UISceneDelegateClassName</key>
+                    <string>SecondarySceneDelegate</string>
+                </dict>
             </array>
             <key>UIWindowSceneSessionRoleExternalDisplay</key>
             <array>

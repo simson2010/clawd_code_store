@@ -29,4 +29,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                      didDiscardSceneSessions sceneSessions: Set<UISceneSession>) {
         print("[App] scene session 被销毁：\(sceneSessions.count)")
     }
+
+    // 根据连接时携带的 userActivity 决定用哪个场景配置（主场景 / 次级场景）
+    func application(_ application: UIApplication,
+                     configurationForConnecting connectingSceneSession: UISceneSession,
+                     options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        if let activity = options.userActivities.first,
+           activity.activityType == "com.demo.secondaryScene" {
+            return UISceneConfiguration(name: "Secondary Configuration", sessionRole: .windowApplication)
+        }
+        return UISceneConfiguration(name: "Main Configuration", sessionRole: .windowApplication)
+    }
 }
