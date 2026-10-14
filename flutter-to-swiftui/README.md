@@ -1,43 +1,39 @@
-# Flutter App → SwiftUI 原生重写：方案集 + 工具
+# Flutter App → SwiftUI 原生重写：方案 + 工具
 
-把一套 Flutter App（有源码、有 Figma、有自建 GenUI）重写为 Swift / SwiftUI 原生 App 的完整方案演进记录，以及配套的可执行脚本。
+把一套 Flutter App（有源码、有 Figma、有自建 GenUI）重写为 Swift / SwiftUI 原生 App 的落地方案与配套工具。
 
-## 版本演进与阅读顺序
+## 读哪一份
 
-方案经过四轮补充才定型。**后面的版本会推翻前面的结论**，下表标明了哪些已被取代：
+| 文档 | 说明 |
+|---|---|
+| **`00-方案V4-暂定最终版.md`** | ⭐ **唯一事实源**。已合并 V1→V3.1 全部迭代，引用一律以此为准 |
+| `07-给管理层-UI应从Figma生成而非源码推导.md` | 对外汇报用：六论据 + 成本模型 + 常见质疑应答 |
+| `archive/01`–`06` | 历史版本（调研 → V1 → V2 → V3 → V3.1），仅供溯源，**勿引用** |
 
-| 编号 | 文档 | 状态 | 说明 |
-|---|---|---|---|
-| 01 | 调研报告-Flutter转SwiftUI迁移路径 | 历史参考 | 业界 Skill 盘点、Dart→Swift 映射表、四阶段工作流 |
-| 02 | 组件映射落地指南 | 历史参考 | 三层拆解（视觉/结构/行为）、Design Token 桥、App 级适配层 |
-| 03 | 方案评审与落地细化 | **部分有效** | 两层拆分、Screen Spec、SDK 分层仍有效；灰度与数据迁移部分已被 05 推翻 |
-| 04 | 方案 V2-六条补充修订 | **已被 05 取代** | "Flutter 未上线"的前提后来被推翻，勿直接引用 |
-| 05 | **方案 V3-终版落地计划** | ⭐ **当前有效** | 产线与文件所有权、九项缺口、数据迁移、P0–P7 路线图 |
-| 06 | **方案 V3.1-组件库就绪后的调整** | ⭐ **最新补充** | 组件库完备后的工期压缩与六项新增依赖风险 |
-| 07 | 给管理层-UI 应从 Figma 生成 | 对外汇报用 | 六论据 + 成本模型 + 常见质疑应答 |
-
-**按角色选读：**
+**按角色选读（都读 00 号）：**
 
 | 你是 | 读什么 |
 |---|---|
-| 管理者 / 需要立项 | 07 → 06 §0 → 05 §11（一句话总结） |
-| 架构负责人 | 05 全文 → 06 全文 |
-| 一线开发（写 Feature） | 05 §2（文件所有权 + 三层 State）→ `templates/screen_spec.md` |
-| 项目经理（排期） | 05 §8 路线图 → 06 §6 修订后 P0/P1 → `templates/p0_kickoff_checklist.md` |
+| 管理者 / 立项 | 07 → 00 §1（一页纸摘要） |
+| 架构负责人 | 00 全文，重点 §3（产线架构）§5（子系统）§9（风险） |
+| 一线开发 | 00 §3（文件所有权 + 三层 State）→ `templates/screen_spec.md` |
+| 项目经理 | 00 §8 路线图 + §10 待决策清单 → `templates/p0_kickoff_checklist.md` |
 
 ## 目录结构
 
 ```
 flutter-to-swiftui/
-├── 01 ~ 07              方案文档（按演进顺序编号）
+├── 00-方案V4-暂定最终版.md       ⭐ 唯一事实源
+├── 07-给管理层-....md            对外汇报
+├── archive/                      历史版本（勿引用）
 ├── templates/
-│   ├── screen_spec.md           每个屏幕的行为契约模板（Analyzer Agent 的唯一输出格式）
-│   └── p0_kickoff_checklist.md  P0 阶段可执行检查清单（含出口标准）
+│   ├── screen_spec.md            每个屏幕的行为契约模板（Analyzer Agent 唯一输出格式）
+│   └── p0_kickoff_checklist.md   P0 阶段可执行检查清单（含出口标准）
 ├── tools/
-│   └── scan_flutter_widgets.py  Flutter 组件清单扫描器
+│   └── scan_flutter_widgets.py   Flutter 组件清单扫描器
 └── samples/
-    ├── sample_flutter_app/      用于验证脚本的最小 Flutter 样例工程
-    └── expected_output/         该样例的预期扫描输出（可作回归基准）
+    ├── sample_flutter_app/       验证脚本的最小 Flutter 样例工程
+    └── expected_output/          预期扫描输出（回归基准）
 ```
 
 ## 工具
@@ -75,9 +71,9 @@ diff <(cat /tmp/verify/widget_inventory.md) samples/expected_output/widget_inven
 |---|---|
 | 有没有一键转译器 | 没有，也不可能有。渲染模型根本不同（自绘 vs 原生组件） |
 | 产线分工 | **GenUI 出 UI + TCA 骨架（可再生层），Agent 出 Reducer 业务逻辑（持久层）** |
-| 最大工程风险 | GenUI 重新生成时吃掉手写逻辑 → 必须做文件所有权隔离 + CI 守护 |
-| State 冲突解法 | 三层分离：`view`（GenUI 生成）+ `domain`（手写）+ 外层 `State` 组合 |
+| 最大工程风险 | GenUI 重新生成时吃掉手写逻辑 → 文件所有权隔离 + CI 守护 |
+| State 冲突解法 | 三层分离：`view`（GenUI 生成）+ `domain`（手写） |
 | P1 出口标准 | 改一次设计稿 → 重新生成 → 业务逻辑不丢 |
-| 数据迁移 | 不要在 Native 侧猜 Flutter 私有存储格式；在 Flutter 倒数第二个版本**预埋 JSON 导出** |
-| 最低 iOS 目标 | 16 以上 → `@Observable` / `SwiftData` / `ContentUnavailableView` 全部不可用 |
-| 最高性价比动作 | 抽取线上 App 的 TCA Feature 做 Agent 的 few-shot 语料库（约 1 人 3 天） |
+| 数据迁移 | 不猜 Flutter 私有存储格式；Flutter 倒数第二版**预埋 JSON 导出** |
+| 最低 iOS 目标 | 16 → `@Observable` / `SwiftData` / `ContentUnavailableView` 不可用 |
+| 最高性价比动作 | 抽取线上 App 的 TCA Feature 做 Agent few-shot 语料库（约 1 人 3 天） |

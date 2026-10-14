@@ -158,7 +158,7 @@ ModelName:
 
 ## 10. 埋点
 
-> V2 修订：埋点方案已由 Tagging 文档统一定义，事件名必须从生成的 Swift 枚举取，**不得写字面量**。
+> 埋点方案已由 Tagging 文档统一定义，事件名必须从生成的 Swift 枚举取，**不得写字面量**。
 > 「上下文来源」列是自动埋点的关键 ——高阶 Reducer 需要从 State 快照取这些字段，字段必须可达。
 
 ### 10.1 行为埋点（TCA Action 驱动）
@@ -228,7 +228,7 @@ ModelName:
 - [ ] 状态机全部状态已实现
 - [ ] 边界场景全部覆盖
 - [ ] 埋点事件与参数逐一对齐
-- [ ] 视觉回归对比通过（Flutter golden vs SwiftUI snapshot）
+- [ ] 视觉回归对比通过（Figma 切图 ↔ SwiftUI snapshot；关键路径加 Flutter 真机对照）
 - [ ] 无硬编码色值 / 间距
 - [ ] accessibilityLabel / Dynamic Type / 深色模式 通过
 - [ ] 单元测试覆盖状态转换
