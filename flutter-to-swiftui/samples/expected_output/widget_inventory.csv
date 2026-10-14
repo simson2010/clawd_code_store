@@ -1,0 +1,8 @@
+﻿组件名,基类,是否Stateful,引用次数,必填参数数,总参数数,参数列表,迁移风险信号,源码路径
+AppCard,StatelessWidget,否,2,1,4,super | this* | this | this,—,lib/widgets/app_card.dart
+MyApp,StatelessWidget,否,1,0,1,super,—,lib/main.dart
+HomeScreen,StatefulWidget,是,1,0,1,super,—,lib/screens/home_screen.dart
+AppButton,StatelessWidget,否,1,2,6,super | this* | this* | this | this | this,—,lib/widgets/app_button.dart
+TrendChart,StatelessWidget,否,1,1,2,super | this*,自绘画布委托 → SwiftUI Canvas / Path 手绘,lib/widgets/chart_painter.dart
+_TrendPainter,CustomPainter,否,1,0,0,,自绘/渲染型 → 无 SwiftUI 等价物，必须重写,lib/widgets/chart_painter.dart
+AppBlurPanel,StatelessWidget,否,0,1,2,super | this*,实时背景模糊 → Material / UIVisualEffectView,lib/widgets/app_card.dart

@@ -1,0 +1,194 @@
+{
+  "project": "samples/sample_flutter_app",
+  "dart_files": 5,
+  "baseline": "Material（Material Design 观感，迁移到 SwiftUI 需要重新定性视觉）",
+  "custom_widgets": {
+    "AppCard": {
+      "name": "AppCard",
+      "base": "StatelessWidget",
+      "stateful": false,
+      "self_render": false,
+      "file": "lib/widgets/app_card.dart",
+      "params": [
+        [
+          "super",
+          false,
+          ""
+        ],
+        [
+          "this",
+          true,
+          ""
+        ],
+        [
+          "this",
+          false,
+          ""
+        ],
+        [
+          "this",
+          false,
+          ""
+        ]
+      ],
+      "risk": [],
+      "refs": 2
+    },
+    "MyApp": {
+      "name": "MyApp",
+      "base": "StatelessWidget",
+      "stateful": false,
+      "self_render": false,
+      "file": "lib/main.dart",
+      "params": [
+        [
+          "super",
+          false,
+          ""
+        ]
+      ],
+      "risk": [],
+      "refs": 1
+    },
+    "HomeScreen": {
+      "name": "HomeScreen",
+      "base": "StatefulWidget",
+      "stateful": true,
+      "self_render": false,
+      "file": "lib/screens/home_screen.dart",
+      "params": [
+        [
+          "super",
+          false,
+          ""
+        ]
+      ],
+      "risk": [],
+      "refs": 1
+    },
+    "AppButton": {
+      "name": "AppButton",
+      "base": "StatelessWidget",
+      "stateful": false,
+      "self_render": false,
+      "file": "lib/widgets/app_button.dart",
+      "params": [
+        [
+          "super",
+          false,
+          ""
+        ],
+        [
+          "this",
+          true,
+          ""
+        ],
+        [
+          "this",
+          true,
+          ""
+        ],
+        [
+          "this",
+          false,
+          ""
+        ],
+        [
+          "this",
+          false,
+          ""
+        ],
+        [
+          "this",
+          false,
+          ""
+        ]
+      ],
+      "risk": [],
+      "refs": 1
+    },
+    "TrendChart": {
+      "name": "TrendChart",
+      "base": "StatelessWidget",
+      "stateful": false,
+      "self_render": false,
+      "file": "lib/widgets/chart_painter.dart",
+      "params": [
+        [
+          "super",
+          false,
+          ""
+        ],
+        [
+          "this",
+          true,
+          ""
+        ]
+      ],
+      "risk": [
+        "CustomPaint"
+      ],
+      "refs": 1
+    },
+    "_TrendPainter": {
+      "name": "_TrendPainter",
+      "base": "CustomPainter",
+      "stateful": false,
+      "self_render": true,
+      "file": "lib/widgets/chart_painter.dart",
+      "params": [],
+      "risk": [
+        "CustomPaint",
+        "CustomPainter",
+        "__self_render__"
+      ],
+      "refs": 1
+    },
+    "AppBlurPanel": {
+      "name": "AppBlurPanel",
+      "base": "StatelessWidget",
+      "stateful": false,
+      "self_render": false,
+      "file": "lib/widgets/app_card.dart",
+      "params": [
+        [
+          "super",
+          false,
+          ""
+        ],
+        [
+          "this",
+          true,
+          ""
+        ]
+      ],
+      "risk": [
+        "BackdropFilter",
+        "ImageFilter"
+      ],
+      "refs": 0
+    }
+  },
+  "sdk_usage": {
+    "Text": 3,
+    "Scaffold": 1,
+    "AppBar": 1,
+    "MaterialApp": 1,
+    "Card": 1,
+    "ElevatedButton": 1,
+    "CircularProgressIndicator": 1,
+    "Container": 1,
+    "Column": 1,
+    "Padding": 1,
+    "SizedBox": 1,
+    "ListView": 1,
+    "InkWell": 1,
+    "BackdropFilter": 1,
+    "CustomPaint": 1
+  },
+  "ds_candidates": [
+    "AppCard",
+    "AppButton",
+    "AppBlurPanel"
+  ]
+}

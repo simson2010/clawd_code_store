@@ -6,6 +6,8 @@
 
 本仓库收集并整理每日的 GitHub Trending 项目和 HackerNews 热门内容，方便回顾和查阅。
 
+另外包含专题：`flutter-to-swiftui/` —— Flutter App 重写为 SwiftUI 原生 App 的方案演进记录（V1→V3.1）、Screen Spec 模板、P0 检查清单，以及一个纯标准库实现的 Flutter 组件清单扫描脚本。详见该目录下的 [README](flutter-to-swiftui/README.md)。
+
 ## 目录结构
 
 ```
@@ -16,6 +18,10 @@ clawd_code_store/
 │   └── 2026-03/
 ├── hackernews/
 ├── docs/
+├── flutter-to-swiftui/
+│   ├── templates/
+│   ├── tools/
+│   └── samples/
 ├── life/
 │   └── 2026-04/
 ├── README.md
